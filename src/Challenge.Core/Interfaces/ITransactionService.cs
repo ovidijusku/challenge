@@ -4,7 +4,11 @@ namespace Challenge.Core.Interfaces;
 
 public interface ITransactionService
 {
-    Task<TransactionDto> AddAsync(CreateTransactionDto dto, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Creates a transaction for an existing user. Returns <c>null</c> when the
+    /// referenced user does not exist.
+    /// </summary>
+    Task<TransactionDto?> AddAsync(CreateTransactionDto dto, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<TransactionDto>> GetAllAsync(CancellationToken cancellationToken = default);
 
@@ -15,7 +19,7 @@ public interface ITransactionService
     Task<IReadOnlyList<TransactionTypeTotalDto>> GetTotalPerTypeAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Returns transactions whose amount is strictly greater than <paramref name="threshold"/>,
+    /// Returns transactions whose amount is greater than or equal to <paramref name="threshold"/>,
     /// ordered by amount descending.
     /// </summary>
     Task<IReadOnlyList<TransactionDto>> GetHighVolumeAsync(decimal threshold, CancellationToken cancellationToken = default);

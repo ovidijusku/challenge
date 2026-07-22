@@ -2,6 +2,7 @@ using Challenge.Api.Controllers;
 using Challenge.Core.Dtos;
 using Challenge.Core.Enums;
 using Challenge.Core.Interfaces;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 
@@ -25,6 +26,19 @@ public class TransactionsControllerTests
 
         var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
         Assert.Same(created, createdResult.Value);
+    }
+
+    [Fact]
+    public async Task Add_WhenUserDoesNotExist_ReturnsBadRequest()
+    {
+        _service.AddAsync(Arg.Any<CreateTransactionDto>(), Arg.Any<CancellationToken>()).Returns((TransactionDto?)null);
+
+        var result = await CreateSut().Add(
+            new CreateTransactionDto { UserId = "missing", Amount = 10m, TransactionType = TransactionType.Debit },
+            CancellationToken.None);
+
+        var objectResult = Assert.IsType<ObjectResult>(result.Result);
+        Assert.Equal(StatusCodes.Status400BadRequest, objectResult.StatusCode);
     }
 
     [Fact]

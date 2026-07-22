@@ -12,6 +12,13 @@ public class TransactionsController(ITransactionService transactions) : Controll
     public async Task<ActionResult<TransactionDto>> Add(CreateTransactionDto dto, CancellationToken cancellationToken)
     {
         var created = await transactions.AddAsync(dto, cancellationToken);
+        if (created is null)
+        {
+            return Problem(
+                detail: $"User '{dto.UserId}' does not exist.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         return CreatedAtAction(nameof(GetAll), null, created);
     }
 

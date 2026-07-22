@@ -5,10 +5,16 @@ using Challenge.Core.Interfaces;
 
 namespace Challenge.Core.Services;
 
-public class TransactionService(IRepository<Transaction> transactions, IMapper mapper) : ITransactionService
+public class TransactionService(IRepository<Transaction> transactions, IRepository<User> users, IMapper mapper) : ITransactionService
 {
-    public async Task<TransactionDto> AddAsync(CreateTransactionDto dto, CancellationToken cancellationToken = default)
+    public async Task<TransactionDto?> AddAsync(CreateTransactionDto dto, CancellationToken cancellationToken = default)
     {
+        var user = await users.GetByIdAsync(dto.UserId, cancellationToken);
+        if (user is null)
+        {
+            return null;
+        }
+
         var transaction = mapper.Map<Transaction>(dto);
         transaction.CreatedAt = DateTime.UtcNow;
         await transactions.AddAsync(transaction, cancellationToken);
@@ -30,14 +36,19 @@ public class TransactionService(IRepository<Transaction> transactions, IMapper m
 
     public async Task<IReadOnlyList<UserTotalDto>> GetTotalPerUserAsync(CancellationToken cancellationToken = default)
     {
-        var result = await transactions.GetAllAsync(cancellationToken);
+        var allTransactions = await transactions.GetAllAsync(cancellationToken);
+        var allUsers = await users.GetAllAsync(cancellationToken);
 
-        return result
+        var totalsByUser = allTransactions
             .GroupBy(t => t.UserId)
-            .Select(g => new UserTotalDto
+            .ToDictionary(g => g.Key, g => g.Sum(t => t.Amount));
+
+        // Drive off the users list so users with no transactions are reported with a total of 0.
+        return allUsers
+            .Select(u => new UserTotalDto
             {
-                UserId = g.Key,
-                TotalAmount = g.Sum(t => t.Amount)
+                UserId = u.Id,
+                TotalAmount = totalsByUser.GetValueOrDefault(u.Id)
             })
             .ToList();
     }
@@ -58,7 +69,7 @@ public class TransactionService(IRepository<Transaction> transactions, IMapper m
 
     public async Task<IReadOnlyList<TransactionDto>> GetHighVolumeAsync(decimal threshold, CancellationToken cancellationToken = default)
     {
-        var result = await transactions.FindAsync(t => t.Amount > threshold, cancellationToken);
+        var result = await transactions.FindAsync(t => t.Amount >= threshold, cancellationToken);
 
         var ordered = result
             .OrderByDescending(t => t.Amount)

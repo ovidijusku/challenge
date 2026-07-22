@@ -12,9 +12,10 @@ namespace Challenge.UnitTests;
 public class TransactionServiceTests
 {
     private readonly IRepository<Transaction> _repository = Substitute.For<IRepository<Transaction>>();
+    private readonly IRepository<User> _users = Substitute.For<IRepository<User>>();
     private readonly IMapper _mapper = TestMapperFactory.Create();
 
-    private TransactionService CreateSut() => new(_repository, _mapper);
+    private TransactionService CreateSut() => new(_repository, _users, _mapper);
 
     private static List<Transaction> SampleData() =>
     [
@@ -49,15 +50,22 @@ public class TransactionServiceTests
     }
 
     [Fact]
-    public async Task GetTotalPerUserAsync_SumsAmountsPerUser()
+    public async Task GetTotalPerUserAsync_SumsAmountsPerUser_AndIncludesUsersWithNoTransactions()
     {
         _repository.GetAllAsync(Arg.Any<CancellationToken>()).Returns(SampleData());
+        _users.GetAllAsync(Arg.Any<CancellationToken>()).Returns(
+        [
+            new User { Id = "u1" },
+            new User { Id = "u2" },
+            new User { Id = "u3" },
+        ]);
 
         var result = await CreateSut().GetTotalPerUserAsync();
 
-        Assert.Equal(2, result.Count);
+        Assert.Equal(3, result.Count);
         Assert.Equal(150m, result.Single(r => r.UserId == "u1").TotalAmount);
         Assert.Equal(225m, result.Single(r => r.UserId == "u2").TotalAmount);
+        Assert.Equal(0m, result.Single(r => r.UserId == "u3").TotalAmount);
     }
 
     [Fact]
@@ -77,7 +85,7 @@ public class TransactionServiceTests
         const decimal threshold = 40m;
         _repository
             .FindAsync(Arg.Any<Expression<Func<Transaction, bool>>>(), Arg.Any<CancellationToken>())
-            .Returns(SampleData().Where(t => t.Amount > threshold).ToList());
+            .Returns(SampleData().Where(t => t.Amount >= threshold).ToList());
 
         var result = await CreateSut().GetHighVolumeAsync(threshold);
 
@@ -85,15 +93,30 @@ public class TransactionServiceTests
     }
 
     [Fact]
-    public async Task AddAsync_AddsTransactionAndSavesChanges()
+    public async Task AddAsync_WhenUserExists_AddsTransactionAndSavesChanges()
     {
+        _users.GetByIdAsync("u1", Arg.Any<CancellationToken>()).Returns(new User { Id = "u1" });
         var dto = new CreateTransactionDto { UserId = "u1", Amount = 10m, TransactionType = TransactionType.Debit };
 
         var result = await CreateSut().AddAsync(dto);
 
         await _repository.Received(1).AddAsync(Arg.Is<Transaction>(t => t!.UserId == "u1" && t.Amount == 10m), Arg.Any<CancellationToken>());
         await _repository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
-        Assert.Equal("u1", result.UserId);
+        Assert.NotNull(result);
+        Assert.Equal("u1", result!.UserId);
         Assert.Equal(10m, result.Amount);
+    }
+
+    [Fact]
+    public async Task AddAsync_WhenUserMissing_ReturnsNullAndDoesNotPersist()
+    {
+        _users.GetByIdAsync("missing", Arg.Any<CancellationToken>()).Returns((User?)null);
+        var dto = new CreateTransactionDto { UserId = "missing", Amount = 10m, TransactionType = TransactionType.Debit };
+
+        var result = await CreateSut().AddAsync(dto);
+
+        Assert.Null(result);
+        await _repository.DidNotReceive().AddAsync(Arg.Any<Transaction>(), Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }

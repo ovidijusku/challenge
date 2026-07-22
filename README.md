@@ -63,12 +63,13 @@ overridden in the container via `ConnectionStrings__Default`.
 | --- | --- | --- |
 | POST | `/api/transactions` | Add a transaction |
 | GET | `/api/transactions` | List transactions (optional `?userId=`) |
-| GET | `/api/transactions/totals/per-user` | Total amount per user |
+| GET | `/api/transactions/totals/per-user` | Total amount per user (users with no transactions report `0`) |
 | GET | `/api/transactions/totals/per-type` | Total amount per type |
-| GET | `/api/transactions/high-volume?threshold={value}` | Amounts above threshold, descending |
+| GET | `/api/transactions/high-volume?threshold={value}` | Amounts `>=` threshold, descending |
 
-`TransactionType`: `0 = Debit`, `1 = Credit`. Invalid DTOs return `400`; unique-constraint
-violations return `409` as RFC 7807 `ProblemDetails`. Sample requests in
+`TransactionType`: `0 = Debit`, `1 = Credit`. Invalid input — including a transaction that
+references a non-existent user — returns `400`; unique-constraint violations return `409`;
+both as RFC 7807 `ProblemDetails`. Sample requests in
 `src/Challenge.Api/Challenge.Api.http`.
 
 ## Tests
