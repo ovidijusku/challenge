@@ -92,3 +92,53 @@ via Testcontainers).
 > **Apple Silicon:** compose and the integration tests use `azure-sql-edge` (runs natively on
 > arm64). On amd64 you can switch to `mcr.microsoft.com/mssql/server:2022-latest`. If your Docker
 > Engine is older than the negotiated API version, export `DOCKER_API_VERSION` (e.g. `1.43`).
+
+## Technical choices
+
+- **Clean Architecture (Core / Infrastructure / Api).** Keeps business logic free of framework
+  and persistence concerns, so services are unit-testable without a database and the storage
+  technology can change without touching the domain.
+- **Generic `IRepository<T>` + EF Core.** A thin abstraction over `DbSet<T>` keeps the services
+  persistence-agnostic and easy to mock, without hand-writing a repository per entity.
+- **DTOs + AutoMapper.** Entities never cross the HTTP boundary; request/response contracts are
+  explicit records with validation attributes, decoupling the API surface from the schema.
+- **Summaries computed in the service layer.** The aggregation endpoints
+  (`totals/per-user`, `totals/per-type`) are expressed as straightforward LINQ, favouring
+  readability for the dataset size this challenge targets.
+- **RFC 7807 `ProblemDetails` for errors.** A single `GlobalExceptionHandler` maps database
+  constraint violations to meaningful status codes — unique index (`2601/2627`) and foreign-key
+  (`547`) conflicts become `409`, everything else a logged `500` — so error handling lives in
+  one place instead of every controller.
+- **Secrets kept out of source.** The connection string is supplied via environment variables /
+  user-secrets and `docker compose` reads the SA password from `.env`. Nothing sensitive is
+  committed (`.env.example` documents the shape).
+- **Testing pyramid.** Fast unit tests (xUnit + NSubstitute, EF InMemory) cover service and
+  controller logic; integration tests (`WebApplicationFactory` + Testcontainers) exercise the
+  full pipeline against a real SQL Server, which is the only place constraint behaviour (unique
+  index, FK restrict) can be verified.
+
+## Assumptions & trade-offs
+
+- **Deleting a user is blocked (not cascaded) when transactions exist.** Financial history is
+  treated as the record of truth, so the foreign key uses `Restrict` and the API returns `409`
+  rather than silently deleting transactions. Removing a user with history is therefore a
+  deliberate, multi-step operation.
+- **A pre-check guards transaction creation.** `AddAsync` verifies the user exists and returns
+  `400` before hitting the database. This costs an extra round-trip and has a small TOCTOU
+  window, but it cleanly separates "unknown user" (`400`) from a genuine data conflict (`409`),
+  which the `Restrict` foreign key would otherwise make ambiguous.
+- **Summaries load data into memory rather than paging.** For this challenge's scale that keeps
+  the code simple; at production volumes these endpoints would need pagination and/or
+  database-side aggregation, and the plain indexes on `Amount` and `UserId` would be revisited.
+- **`User.Id` is a client-visible string (GUID).** Simple and safe to expose; a sequential key
+  would be smaller but leak ordering/volume.
+- **Migrations run on startup by default.** Convenient for local/dev and the container, but
+  gated behind `ApplyMigrationsOnStartup` so production can run migrations as a separate,
+  controlled step and avoid replicas racing to migrate.
+- **Swagger is enabled only in `Development`.** Avoids exposing the API surface by default in
+  production; enable it explicitly per environment if needed.
+- **Local SQL uses the `sa` account.** Acceptable for a disposable dev container; production is
+  expected to supply a least-privilege login through the externalised connection string.
+- **`TransactionType` is stored as an `int`.** Compact and index-friendly; adding values is safe
+  as long as existing ordinals are preserved.
+
