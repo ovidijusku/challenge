@@ -142,3 +142,21 @@ via Testcontainers).
 - **`TransactionType` is stored as an `int`.** Compact and index-friendly; adding values is safe
   as long as existing ordinals are preserved.
 
+## Potential improvements
+
+Given more time, the following would be the natural next steps:
+
+- **Pagination & server-side aggregation.** Move the list and `totals/*` endpoints to paged
+  queries and database-side `GROUP BY` so they scale beyond in-memory processing.
+- **Authentication & authorization.** No auth today — add JWT/OAuth and per-endpoint policies
+  before this is exposed to real users.
+- **Least-privilege database account by default.** Replace `sa` with a scoped login (and drop
+  `TrustServerCertificate`) in the compose setup, not just in production guidance.
+- **Structured logging & observability.** Add correlation IDs, OpenTelemetry traces/metrics, and
+  ship logs somewhere queryable; the current setup only logs unhandled errors.
+- **API versioning & pagination metadata.** Introduce `api/v1` routing and standard paging
+  headers/response envelopes for forward compatibility.
+- **CI pipeline.** Automate build, analyzers, unit + integration tests, and coverage reporting on
+  every push.
+
+
