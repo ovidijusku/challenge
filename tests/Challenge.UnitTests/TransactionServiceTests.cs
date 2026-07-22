@@ -25,6 +25,30 @@ public class TransactionServiceTests
     ];
 
     [Fact]
+    public async Task GetAllAsync_MapsAllTransactions()
+    {
+        _repository.GetAllAsync(Arg.Any<CancellationToken>()).Returns(SampleData());
+
+        var result = await CreateSut().GetAllAsync();
+
+        Assert.Equal(4, result.Count);
+        Assert.Contains(result, t => t.Id == 3 && t.Amount == 200m);
+    }
+
+    [Fact]
+    public async Task GetByUserAsync_ReturnsOnlyMatchingUser()
+    {
+        _repository
+            .FindAsync(Arg.Any<Expression<Func<Transaction, bool>>>(), Arg.Any<CancellationToken>())
+            .Returns(SampleData().Where(t => t.UserId == "u1").ToList());
+
+        var result = await CreateSut().GetByUserAsync("u1");
+
+        Assert.Equal(2, result.Count);
+        Assert.All(result, t => Assert.Equal("u1", t.UserId));
+    }
+
+    [Fact]
     public async Task GetTotalPerUserAsync_SumsAmountsPerUser()
     {
         _repository.GetAllAsync(Arg.Any<CancellationToken>()).Returns(SampleData());

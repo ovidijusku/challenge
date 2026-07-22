@@ -28,6 +28,34 @@ public class UserServiceTests
     }
 
     [Fact]
+    public async Task GetAllAsync_MapsAllUsers()
+    {
+        _repository.GetAllAsync(Arg.Any<CancellationToken>()).Returns(
+        [
+            new User { Id = "u1", Name = "Ada", Email = "ada@example.com" },
+            new User { Id = "u2", Name = "Alan", Email = "alan@example.com" },
+        ]);
+
+        var result = await CreateSut().GetAllAsync();
+
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, u => u.Id == "u1" && u.Name == "Ada");
+        Assert.Contains(result, u => u.Id == "u2" && u.Name == "Alan");
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_WhenExists_ReturnsDto()
+    {
+        _repository.GetByIdAsync("u1", Arg.Any<CancellationToken>())
+            .Returns(new User { Id = "u1", Name = "Ada", Email = "ada@example.com" });
+
+        var result = await CreateSut().GetByIdAsync("u1");
+
+        Assert.NotNull(result);
+        Assert.Equal("Ada", result!.Name);
+    }
+
+    [Fact]
     public async Task GetByIdAsync_WhenMissing_ReturnsNull()
     {
         _repository.GetByIdAsync("missing", Arg.Any<CancellationToken>()).Returns((User?)null);
@@ -50,6 +78,31 @@ public class UserServiceTests
         Assert.NotNull(result);
         Assert.Equal("New", result!.Name);
         Assert.Equal("new@example.com", result.Email);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WhenMissing_ReturnsNull()
+    {
+        _repository.GetByIdAsync("missing", Arg.Any<CancellationToken>()).Returns((User?)null);
+
+        var result = await CreateSut().UpdateAsync("missing", new UpdateUserDto { Name = "New", Email = "new@example.com" });
+
+        Assert.Null(result);
+        _repository.DidNotReceive().Update(Arg.Any<User>());
+        await _repository.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenExists_RemovesAndReturnsTrue()
+    {
+        var existing = new User { Id = "u1", Name = "Ada", Email = "ada@example.com" };
+        _repository.GetByIdAsync("u1", Arg.Any<CancellationToken>()).Returns(existing);
+
+        var result = await CreateSut().DeleteAsync("u1");
+
+        Assert.True(result);
+        _repository.Received(1).Remove(existing);
+        await _repository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -98,8 +98,10 @@ dotnet_naming_symbols.constant_symbols.required_modifiers = const
 generated_code = true
 
 # Test projects: underscores are the idiomatic Method_Scenario_Expected naming,
-# and inline test-data arrays don't warrant the static-readonly rule.
+# and inline test-data arrays don't warrant the static-readonly rule. Mocked
+# ValueTask-returning members also trip the single-consumption rule.
 [tests/**/*.cs]
 dotnet_diagnostic.CA1707.severity = none
 dotnet_diagnostic.CA1861.severity = none
+dotnet_diagnostic.CA2012.severity = none
 
