@@ -7,7 +7,7 @@ services:
     container_name: challenge-sqlserver
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: "Id0ntKn0WC#2WellButItsN0tFirstRode0"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD}"
     ports:
       - "1433:1433"
     volumes:
@@ -28,7 +28,10 @@ services:
       - "8080:8080"
     environment:
       ASPNETCORE_URLS: "http://+:8080"
-      ConnectionStrings__Default: "Server=sqlserver,1433;Database=ChallengeDb;User Id=sa;Password=Id0ntKn0WC#2WellButItsN0tFirstRode0;TrustServerCertificate=True;"
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ConnectionStrings__Default: "Server=sqlserver,1433;Database=ChallengeDb;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;"
+      # Prod migrations should be handled by a separate migration job, not the API itself. This is only for local development convenience.
+      ApplyMigrationsOnStartup: "true"
     depends_on:
       sqlserver:
         condition: service_healthy

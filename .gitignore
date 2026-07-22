@@ -8,3 +8,6 @@ obj/
 *.user
 .DS_Store
 
+## Local secrets (docker compose reads these)
+.env
+

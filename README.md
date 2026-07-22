@@ -14,7 +14,7 @@ in-memory summary calculations. Built with Clean Architecture, EF Core, AutoMapp
 | `Challenge.IntegrationTests` | End-to-end tests via `WebApplicationFactory` + Testcontainers. |
 
 Dependency direction: `Api → Core`, `Api → Infrastructure`, `Infrastructure → Core`.
-Migrations apply automatically on startup.
+Migrations apply automatically on startup (opt out with `ApplyMigrationsOnStartup=false`).
 
 ## Tech stack
 
@@ -29,6 +29,7 @@ Migrations apply automatically on startup.
 ## Run with Docker Compose
 
 ```bash
+cp .env.example .env    # change password if needed
 docker compose up --build
 ```
 
@@ -42,8 +43,15 @@ docker compose up -d sqlserver          # database only
 dotnet run --project src/Challenge.Api  # Swagger at http://localhost:5019/swagger
 ```
 
-Connection string: `src/Challenge.Api/appsettings.json` (`ConnectionStrings:Default`);
-overridden in the container via `ConnectionStrings__Default`.
+The connection string is not committed. Supply it via environment variable or user-secrets:
+
+```bash
+dotnet user-secrets --project src/Challenge.Api set \
+  "ConnectionStrings:Default" "Server=localhost,1433;Database=ChallengeDb;User Id=sa;Password=<your-password>;TrustServerCertificate=True;"
+```
+
+In the container it is provided via `ConnectionStrings__Default`. Swagger is only enabled in
+the `Development` environment.
 
 ## API endpoints
 
@@ -55,7 +63,7 @@ overridden in the container via `ConnectionStrings__Default`.
 | GET | `/api/users/{id}` | Get user by id |
 | POST | `/api/users` | Create user |
 | PUT | `/api/users/{id}` | Update user |
-| DELETE | `/api/users/{id}` | Delete user |
+| DELETE | `/api/users/{id}` | Delete user (blocked with `409` while the user still has transactions) |
 
 ### Transactions
 
@@ -68,9 +76,9 @@ overridden in the container via `ConnectionStrings__Default`.
 | GET | `/api/transactions/high-volume?threshold={value}` | Amounts `>=` threshold, descending |
 
 `TransactionType`: `0 = Debit`, `1 = Credit`. Invalid input — including a transaction that
-references a non-existent user — returns `400`; unique-constraint violations return `409`;
-both as RFC 7807 `ProblemDetails`. Sample requests in
-`src/Challenge.Api/Challenge.Api.http`.
+references a non-existent user — returns `400`; unique-constraint and foreign-key conflicts
+(e.g. deleting a user that still has transactions) return `409`; both as RFC 7807
+`ProblemDetails`. Sample requests in `src/Challenge.Api/Challenge.Api.http`.
 
 ## Tests
 

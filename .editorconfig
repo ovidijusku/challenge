@@ -93,6 +93,10 @@ dotnet_naming_rule.constants_should_be_pascal_case.style = pascal_case_style
 dotnet_naming_symbols.constant_symbols.applicable_kinds = field
 dotnet_naming_symbols.constant_symbols.required_modifiers = const
 
+# CA1848 (LoggerMessage source generators) is a hot-path micro-optimization that is
+# not warranted at this application's logging volume.
+dotnet_diagnostic.CA1848.severity = none
+
 # EF Core migrations are tool-generated; don't lint them.
 [**/Migrations/*.cs]
 generated_code = true

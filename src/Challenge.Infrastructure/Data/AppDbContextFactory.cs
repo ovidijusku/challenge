@@ -12,7 +12,8 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
     public AppDbContext CreateDbContext(string[] args)
     {
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__Default")
-            ?? "Server=localhost,1433;Database=ChallengeDb;User Id=sa;Password=Id0ntKn0WC#2WellButItsN0tFirstRode0;TrustServerCertificate=True;";
+            ?? throw new InvalidOperationException(
+                "Set the ConnectionStrings__Default environment variable to run EF Core design-time tooling.");
 
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlServer(connectionString)

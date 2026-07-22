@@ -25,9 +25,11 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.HasIndex(u => u.Email)
             .IsUnique();
 
+        // Protect financial history: block deleting a user who still has transactions
+        // rather than silently cascading the deletes.
         builder.HasMany(u => u.Transactions)
             .WithOne(t => t.User)
             .HasForeignKey(t => t.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

@@ -2,6 +2,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 COPY Challenge.slnx ./
+COPY Directory.Build.props .editorconfig ./
 COPY src/Challenge.Api/Challenge.Api.csproj src/Challenge.Api/
 COPY src/Challenge.Core/Challenge.Core.csproj src/Challenge.Core/
 COPY src/Challenge.Infrastructure/Challenge.Infrastructure.csproj src/Challenge.Infrastructure/

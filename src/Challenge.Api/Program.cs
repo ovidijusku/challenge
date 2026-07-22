@@ -32,14 +32,21 @@ var app = builder.Build();
 app.UseExceptionHandler();
 
 // Apply migrations on startup so the database is ready without manual steps.
-using (var scope = app.Services.CreateScope())
+// Opt out with ApplyMigrationsOnStartup=false where migrations are run as a
+// separate, controlled deployment step (and to avoid replicas racing to migrate).
+if (app.Configuration.GetValue("ApplyMigrationsOnStartup", true))
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
 }
 
-app.UseSwagger();
-app.UseSwaggerUI();
+// Swagger is a development/diagnostic surface; don't expose it by default in production.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.MapControllers();
 app.MapHealthChecks("/health");

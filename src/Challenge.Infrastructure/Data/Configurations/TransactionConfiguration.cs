@@ -20,14 +20,10 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
         builder.Property(t => t.TransactionType)
             .HasConversion<int>();
 
-        // Covering index for the high-volume query (WHERE Amount > threshold).
-        // INCLUDE-ing the remaining columns lets SQL Server satisfy the query
-        // entirely from the index and skip key lookups back to the table.
-        builder.HasIndex(t => t.Amount)
-            .IncludeProperties(t => new { t.UserId, t.TransactionType, t.CreatedAt });
+        // Supports the high-volume query (WHERE Amount >= threshold, ORDER BY Amount).
+        builder.HasIndex(t => t.Amount);
 
-        // Covering index for fetching a single user's transactions (WHERE UserId = @id).
-        builder.HasIndex(t => t.UserId)
-            .IncludeProperties(t => new { t.Amount, t.TransactionType, t.CreatedAt });
+        // Supports fetching a single user's transactions (WHERE UserId = @id).
+        builder.HasIndex(t => t.UserId);
     }
 }
