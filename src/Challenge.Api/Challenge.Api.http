@@ -1,0 +1,61 @@
+@host = http://localhost:5019
+
+### Create a user
+# @name createUser
+POST {{host}}/api/users
+Content-Type: application/json
+
+{
+  "name": "Ada Lovelace",
+  "email": "ada@example.com"
+}
+
+### Get all users
+GET {{host}}/api/users
+Accept: application/json
+
+### Get a single user (uses the id from the create response)
+GET {{host}}/api/users/{{createUser.response.body.id}}
+Accept: application/json
+
+### Update a user
+PUT {{host}}/api/users/{{createUser.response.body.id}}
+Content-Type: application/json
+
+{
+  "name": "Ada L.",
+  "email": "ada.l@example.com"
+}
+
+### Delete a user
+DELETE {{host}}/api/users/{{createUser.response.body.id}}
+
+### Add a transaction (TransactionType: 0 = Debit, 1 = Credit)
+POST {{host}}/api/transactions
+Content-Type: application/json
+
+{
+  "userId": "{{createUser.response.body.id}}",
+  "amount": 250.75,
+  "transactionType": 0
+}
+
+### Get all transactions
+GET {{host}}/api/transactions
+Accept: application/json
+
+### Get transactions for a single user
+GET {{host}}/api/transactions?userId={{createUser.response.body.id}}
+Accept: application/json
+
+### Total amount per user
+GET {{host}}/api/transactions/totals/per-user
+Accept: application/json
+
+### Total amount per transaction type
+GET {{host}}/api/transactions/totals/per-type
+Accept: application/json
+
+### High-volume transactions (amount > threshold, ordered descending)
+GET {{host}}/api/transactions/high-volume?threshold=100
+Accept: application/json
