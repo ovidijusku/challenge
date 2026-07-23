@@ -104,7 +104,19 @@ via Testcontainers).
   explicit records with validation attributes, decoupling the API surface from the schema.
 - **Summaries computed in the service layer.** The aggregation endpoints
   (`totals/per-user`, `totals/per-type`) are expressed as straightforward LINQ, favouring
-  readability for the dataset size this challenge targets.
+  readability for the dataset size this challenge targets. In general, though, these operations
+  belong on the SQL side rather than in memory: in production the grouping, summing, filtering,
+  ordering and paging would be pushed down to the database (`GROUP BY`, `WHERE`, `ORDER BY`,
+  `OFFSET/FETCH`) so only the aggregated results travel back, instead of loading full tables
+  into the application to aggregate them.
+- **Indexing kept deliberately simple.** There are plain non-clustered indexes on
+  `Transaction.Amount` (supports the high-volume `WHERE Amount >= threshold ORDER BY Amount`
+  query) and `Transaction.UserId` (supports lookups and the FK) **In production** the access patterns change the
+  calculus: once the list/summary endpoints page and aggregate in the database, the indexes
+  would be revisited — likely a composite `(UserId, CreatedAt)` for per-user history/time
+  ranges, reinstating covering `INCLUDE` columns for the hot read paths, and a filtered or
+  columnstore index if `totals/*` becomes analytical. Index design should follow measured query
+  plans, not be added speculatively.
 - **RFC 7807 `ProblemDetails` for errors.** A single `GlobalExceptionHandler` maps database
   constraint violations to meaningful status codes — unique index (`2601/2627`) and foreign-key
   (`547`) conflicts become `409`, everything else a logged `500` — so error handling lives in
